@@ -27,6 +27,7 @@ pub struct Message {
     method: u16,
     length: u16,
     transaction_id: [u8; 12],
+    // Todo: Option
     attributes: HashMap<u16, Vec<u8>>,
 }
 
@@ -34,7 +35,10 @@ impl Message {
     pub fn new(method: u16, class: u16, attributes: HashMap<u16, Vec<u8>>) -> Message {
         let attr_type_byte_size = 2;
         let attr_length_byte_size = 2;
-        let length: u16 = attributes.iter().map(|e| attr_type_byte_size + attr_length_byte_size + e.1.len() as u16).sum();
+        let length: u16 = attributes
+            .iter()
+            .map(|e| attr_type_byte_size + attr_length_byte_size + e.1.len() as u16)
+            .sum();
 
         Message {
             class: class,
@@ -75,15 +79,20 @@ impl Message {
             ATTR_XOR_MAPPED_ADDRESS => {
                 // RFC8489: X-Port is computed by XOR'ing the mapped port with the most significant 16 bits of the magic cookie.
                 let mc_bytes = MAGIC_COOKIE.to_be_bytes();
-                let port = u16::from_be_bytes([attr_value[2], attr_value[3]]) ^ u16::from_be_bytes([mc_bytes[0], mc_bytes[1]]);
+                let port = u16::from_be_bytes([attr_value[2], attr_value[3]])
+                    ^ u16::from_be_bytes([mc_bytes[0], mc_bytes[1]]);
                 // RFC8489: If the IP address family is IPv4, X-Address is computed by XOR'ing the mapped IP address with the magic cookie.
                 let encoded_ip = &attr_value[4..];
-                let octets: Vec<u8> = encoded_ip.iter()
+                let octets: Vec<u8> = encoded_ip
+                    .iter()
                     .zip(&MAGIC_COOKIE.to_be_bytes())
-                    .map(|(b,m)| b ^ m)
+                    .map(|(b, m)| b ^ m)
                     .collect();
-                Some(format!("{}.{}.{}.{}:{}", octets[0], octets[1], octets[2], octets[3], port))
-            },
+                Some(format!(
+                    "{}.{}.{}.{}:{}",
+                    octets[0], octets[1], octets[2], octets[3], port
+                ))
+            }
             _ => None,
         };
 
@@ -93,14 +102,15 @@ impl Message {
     fn message_type(&self) -> u16 {
         self.class | self.method
     }
-    
+
     fn decode_attrs(attrs_buf: &[u8]) -> HashMap<u16, Vec<u8>> {
         let mut attrs_buf = attrs_buf.to_vec();
         let mut attributes = HashMap::new();
 
         while !attrs_buf.is_empty() {
             let attribute_type = u16::from_be_bytes([attrs_buf.remove(0), attrs_buf.remove(0)]);
-            let length = usize::from_be_bytes([0, 0, 0, 0, 0, 0, attrs_buf.remove(0),attrs_buf.remove(0)]);
+            let length =
+                usize::from_be_bytes([0, 0, 0, 0, 0, 0, attrs_buf.remove(0), attrs_buf.remove(0)]);
             let value: Vec<u8> = attrs_buf.drain(..length).collect();
             attributes.insert(attribute_type, value);
         }
