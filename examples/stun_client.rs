@@ -9,7 +9,9 @@ use stun_client::client::*;
 use stun_client::message::*;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    task::block_on(async { stun_binding().await });
+    task::block_on(async {
+        stun_binding().await.unwrap();
+    });
     Ok(())
 }
 

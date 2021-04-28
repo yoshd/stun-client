@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use super::error::*;
+
 // Magic cookie
 pub const MAGIC_COOKIE: u32 = 0x2112A442;
 
@@ -50,17 +52,17 @@ impl Message {
         }
     }
 
-    pub fn from_raw(buf: &[u8]) -> Message {
+    pub fn from_raw(buf: &[u8]) -> Result<Message, StunClientError> {
         // Todo: Header
-        let attrs = Message::decode_attrs(&buf[HEADER_BYTE_SIZE..]);
-        Message {
+        let attrs = Message::decode_attrs(&buf[HEADER_BYTE_SIZE..])?;
+        Ok(Message {
             // Todo: Header
             class: CLASS_REQUEST,
             method: METHOD_BINDING,
             length: 0,
             attributes: attrs,
             transaction_id: [0; 12],
-        }
+        })
     }
 
     pub fn to_raw(&self) -> Vec<u8> {
@@ -103,18 +105,26 @@ impl Message {
         self.class | self.method
     }
 
-    fn decode_attrs(attrs_buf: &[u8]) -> HashMap<u16, Vec<u8>> {
+    fn decode_attrs(attrs_buf: &[u8]) -> Result<HashMap<u16, Vec<u8>>, StunClientError> {
         let mut attrs_buf = attrs_buf.to_vec();
         let mut attributes = HashMap::new();
+
+        if attrs_buf.len() < 4 {
+            return Err(StunClientError::ParseError());
+        }
 
         while !attrs_buf.is_empty() {
             let attribute_type = u16::from_be_bytes([attrs_buf.remove(0), attrs_buf.remove(0)]);
             let length =
                 usize::from_be_bytes([0, 0, 0, 0, 0, 0, attrs_buf.remove(0), attrs_buf.remove(0)]);
+            if attrs_buf.len() < length {
+                return Err(StunClientError::ParseError());
+            }
+
             let value: Vec<u8> = attrs_buf.drain(..length).collect();
             attributes.insert(attribute_type, value);
         }
 
-        attributes
+        Ok(attributes)
     }
 }

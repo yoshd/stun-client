@@ -1,9 +1,9 @@
 use std::collections::HashMap;
-use std::error::Error;
 use std::rc::Rc;
 
 use async_std::net::{ToSocketAddrs, UdpSocket};
 
+use super::error::*;
 use super::message::*;
 
 pub struct Client {
@@ -11,9 +11,10 @@ pub struct Client {
 }
 
 impl Client {
-    // Todo: Error
-    pub async fn new() -> Result<Client, Box<dyn Error>> {
-        let socket = UdpSocket::bind("0.0.0.0:0").await?;
+    pub async fn new<A: ToSocketAddrs>(local_bind_addr: A) -> Result<Client, StunClientError> {
+        let socket = UdpSocket::bind(local_bind_addr)
+            .await
+            .map_err(|e| StunClientError::IOError(e))?;
         Ok(Client {
             socket: Rc::new(socket),
         })
@@ -23,20 +24,26 @@ impl Client {
         Client { socket: socket }
     }
 
-    // Todo: Error
     pub async fn binding_request<A: ToSocketAddrs>(
         &self,
         stun_addr: A,
         attrs: HashMap<u16, Vec<u8>>,
-    ) -> Result<Message, Box<dyn Error>> {
+    ) -> Result<Message, StunClientError> {
         let msg = Message::new(METHOD_BINDING, CLASS_REQUEST, attrs);
         let raw_msg = msg.to_raw();
-        self.socket.send_to(&raw_msg, stun_addr).await?;
+        self.socket
+            .send_to(&raw_msg, stun_addr)
+            .await
+            .map_err(|e| StunClientError::IOError(e))?;
 
         // Todo: buf.length() < n
         let mut buf = vec![0u8; 1024];
-        let (n, _) = self.socket.recv_from(&mut buf).await?;
+        let (n, _) = self
+            .socket
+            .recv_from(&mut buf)
+            .await
+            .map_err(|e| StunClientError::IOError(e))?;
 
-        Ok(Message::from_raw(&buf[..n]))
+        Message::from_raw(&buf[..n])
     }
 }
