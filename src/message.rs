@@ -52,7 +52,7 @@ impl Message {
         }
     }
 
-    pub fn from_raw(buf: &[u8]) -> Result<Message, StunClientError> {
+    pub fn from_raw(buf: &[u8]) -> Result<Message, STUNClientError> {
         // Todo: Header
         let attrs = Message::decode_attrs(&buf[HEADER_BYTE_SIZE..])?;
         Ok(Message {
@@ -105,12 +105,12 @@ impl Message {
         self.class | self.method
     }
 
-    fn decode_attrs(attrs_buf: &[u8]) -> Result<HashMap<u16, Vec<u8>>, StunClientError> {
+    fn decode_attrs(attrs_buf: &[u8]) -> Result<HashMap<u16, Vec<u8>>, STUNClientError> {
         let mut attrs_buf = attrs_buf.to_vec();
         let mut attributes = HashMap::new();
 
         if attrs_buf.len() < 4 {
-            return Err(StunClientError::ParseError());
+            return Err(STUNClientError::ParseError());
         }
 
         while !attrs_buf.is_empty() {
@@ -118,7 +118,7 @@ impl Message {
             let length =
                 usize::from_be_bytes([0, 0, 0, 0, 0, 0, attrs_buf.remove(0), attrs_buf.remove(0)]);
             if attrs_buf.len() < length {
-                return Err(StunClientError::ParseError());
+                return Err(STUNClientError::ParseError());
             }
 
             let value: Vec<u8> = attrs_buf.drain(..length).collect();
