@@ -10,6 +10,9 @@ pub const METHOD_BINDING: u16 = 0x0001;
 
 // Classes
 pub const CLASS_REQUEST: u16 = 0x0000;
+pub const CLASS_INDICATION: u16 = 0x0010;
+pub const CLASS_SUCCESS_RESPONSE: u16 = 0x0100;
+pub const CLASS_ERROR_RESPONSE: u16 = 0x0110;
 
 // STUN Header size
 pub const HEADER_BYTE_SIZE: usize = 20;
@@ -25,10 +28,7 @@ pub const ATTR_CHANGE_REQUEST: u16 = 0x0003;
 
 #[derive(Debug)]
 pub struct Message {
-    class: u16,
-    method: u16,
-    length: u16,
-    transaction_id: [u8; 12],
+    header: Header,
     // Todo: Option
     attributes: HashMap<u16, Vec<u8>>,
 }
@@ -41,38 +41,41 @@ impl Message {
             .iter()
             .map(|e| attr_type_byte_size + attr_length_byte_size + e.1.len() as u16)
             .sum();
+        // Todo: Random
+        let transaction_id: Vec<u8> = vec![0; 12];
 
         Message {
-            class: class,
-            method: method,
-            length: length,
+            header: Header::new(method, class, length, transaction_id),
             attributes: attributes,
-            // Todo: Random
-            transaction_id: [0; 12],
         }
     }
 
     pub fn from_raw(buf: &[u8]) -> Result<Message, STUNClientError> {
         // Todo: Header
+        let header = Header::from_raw(&buf[..HEADER_BYTE_SIZE])?;
         let attrs = Message::decode_attrs(&buf[HEADER_BYTE_SIZE..])?;
         Ok(Message {
-            // Todo: Header
-            class: CLASS_REQUEST,
-            method: METHOD_BINDING,
-            length: 0,
+            header: header,
             attributes: attrs,
-            transaction_id: [0; 12],
         })
     }
 
     pub fn to_raw(&self) -> Vec<u8> {
-        let message_type = self.message_type();
-        let mut bytes = vec![];
-        bytes.extend(&message_type.to_be_bytes());
-        bytes.extend(&self.length.to_be_bytes());
-        bytes.extend(&MAGIC_COOKIE.to_be_bytes());
-        bytes.extend(&self.transaction_id);
+        let mut bytes = self.header.to_raw();
+        for (k, v) in self.attributes.iter() {
+            bytes.extend(&k.to_be_bytes());
+            bytes.extend(&(v.len() as u16).to_be_bytes());
+            bytes.extend(v);
+        }
         bytes
+    }
+
+    pub fn get_class(&self) -> u16 {
+        self.header.class
+    }
+
+    pub fn get_method(&self) -> u16 {
+        self.header.method
     }
 
     pub fn decode_attr(&self, attr: u16) -> Option<String> {
@@ -101,10 +104,6 @@ impl Message {
         result
     }
 
-    fn message_type(&self) -> u16 {
-        self.class | self.method
-    }
-
     fn decode_attrs(attrs_buf: &[u8]) -> Result<HashMap<u16, Vec<u8>>, STUNClientError> {
         let mut attrs_buf = attrs_buf.to_vec();
         let mut attributes = HashMap::new();
@@ -126,5 +125,67 @@ impl Message {
         }
 
         Ok(attributes)
+    }
+}
+
+#[derive(Debug)]
+pub struct Header {
+    class: u16,
+    method: u16,
+    length: u16,
+    transaction_id: Vec<u8>,
+}
+
+impl Header {
+    pub fn new(method: u16, class: u16, length: u16, transaction_id: Vec<u8>) -> Header {
+        Header {
+            class: class,
+            method: method,
+            length: length,
+            transaction_id: transaction_id,
+        }
+    }
+
+    pub fn from_raw(buf: &[u8]) -> Result<Header, STUNClientError> {
+        let mut buf = buf.to_vec();
+        if buf.len() < HEADER_BYTE_SIZE {
+            return Err(STUNClientError::ParseError())
+        }
+
+        let message_type = u16::from_be_bytes([buf.remove(0), buf.remove(0)]);
+        let class = Header::decode_class(message_type)?;
+        let method = Header::decode_method(message_type)?;
+        let length = u16::from_be_bytes([buf.remove(0), buf.remove(0)]);
+
+        Ok(Header {
+            class: class,
+            method: method,
+            length: length,
+            transaction_id: buf,
+        })
+    }
+
+    pub fn to_raw(&self) -> Vec<u8> {
+        let message_type = self.message_type();
+        let mut bytes = vec![];
+        bytes.extend(&message_type.to_be_bytes());
+        bytes.extend(&self.length.to_be_bytes());
+        bytes.extend(&MAGIC_COOKIE.to_be_bytes());
+        bytes.extend(&self.transaction_id);
+        bytes
+    }
+
+    fn message_type(&self) -> u16 {
+        self.class | self.method
+    }
+
+    fn decode_class(message_type: u16) -> Result<u16, STUNClientError> {
+        // RFC8489: C1 and C0 represent a 2-bit encoding of the class
+        Ok(message_type & 0x0110)
+    }
+
+    fn decode_method(message_type: u16) -> Result<u16, STUNClientError> {
+        // RFC8489: M11 through M0 represent a 12-bit encoding of the method
+        Ok(message_type & 0x3DDE)
     }
 }

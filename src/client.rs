@@ -36,7 +36,6 @@ impl Client {
             .await
             .map_err(|e| STUNClientError::IOError(e))?;
 
-        // Todo: buf.length() < n
         let mut buf = vec![0u8; 1024];
         let (n, _) = self
             .socket
