@@ -27,7 +27,7 @@ impl Client {
     pub async fn binding_request<A: ToSocketAddrs>(
         &self,
         stun_addr: A,
-        attrs: HashMap<Attribute, Vec<u8>>,
+        attrs: Option<HashMap<Attribute, Vec<u8>>>,
     ) -> Result<Message, STUNClientError> {
         let msg = Message::new(Method::Binding, Class::Request, attrs);
         let raw_msg = msg.to_raw();

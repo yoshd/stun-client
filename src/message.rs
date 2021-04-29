@@ -116,18 +116,26 @@ impl Attribute {
 #[derive(Debug)]
 pub struct Message {
     header: Header,
-    // Todo: Option
-    attributes: HashMap<Attribute, Vec<u8>>,
+    attributes: Option<HashMap<Attribute, Vec<u8>>>,
 }
 
 impl Message {
-    pub fn new(method: Method, class: Class, attributes: HashMap<Attribute, Vec<u8>>) -> Message {
+    pub fn new(
+        method: Method,
+        class: Class,
+        attributes: Option<HashMap<Attribute, Vec<u8>>>,
+    ) -> Message {
         let attr_type_byte_size = 2;
         let attr_length_byte_size = 2;
-        let length: u16 = attributes
-            .iter()
-            .map(|e| attr_type_byte_size + attr_length_byte_size + e.1.len() as u16)
-            .sum();
+        let length: u16 = if let Some(attributes) = &attributes {
+            attributes
+                .iter()
+                .map(|e| attr_type_byte_size + attr_length_byte_size + e.1.len() as u16)
+                .sum()
+        } else {
+            0
+        };
+
         // Todo: Random
         let transaction_id: Vec<u8> = vec![0; 12];
 
@@ -138,8 +146,16 @@ impl Message {
     }
 
     pub fn from_raw(buf: &[u8]) -> Result<Message, STUNClientError> {
+        if buf.len() < HEADER_BYTE_SIZE {
+            return Err(STUNClientError::ParseError());
+        }
+
         let header = Header::from_raw(&buf[..HEADER_BYTE_SIZE])?;
-        let attrs = Message::decode_attrs(&buf[HEADER_BYTE_SIZE..])?;
+        let mut attrs = None;
+        if buf.len() > HEADER_BYTE_SIZE {
+            attrs = Some(Message::decode_attrs(&buf[HEADER_BYTE_SIZE..])?);
+        }
+
         Ok(Message {
             header: header,
             attributes: attrs,
@@ -148,11 +164,14 @@ impl Message {
 
     pub fn to_raw(&self) -> Vec<u8> {
         let mut bytes = self.header.to_raw();
-        for (k, v) in self.attributes.iter() {
-            bytes.extend(&k.to_u16().to_be_bytes());
-            bytes.extend(&(v.len() as u16).to_be_bytes());
-            bytes.extend(v);
+        if let Some(attributes) = &self.attributes {
+            for (k, v) in attributes.iter() {
+                bytes.extend(&k.to_u16().to_be_bytes());
+                bytes.extend(&(v.len() as u16).to_be_bytes());
+                bytes.extend(v);
+            }
         }
+
         bytes
     }
 
@@ -165,7 +184,7 @@ impl Message {
     }
 
     pub fn decode_attr(&self, attr: Attribute) -> Option<String> {
-        let attr_value = self.attributes.get(&attr)?;
+        let attr_value = self.attributes.as_ref()?.get(&attr)?;
         let result = match attr {
             Attribute::XORMappedAddress => {
                 // Todo: IPv6

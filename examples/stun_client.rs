@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::rc::Rc;
 
 use anyhow::{anyhow, Error};
@@ -19,9 +18,8 @@ async fn stun_binding() -> Result<(), Error> {
     let socket = UdpSocket::bind("0.0.0.0:0").await?;
     let socket = Rc::new(socket);
     let client = Client::from_socket(socket.clone());
-    let attrs = HashMap::new();
     let res = client
-        .binding_request("stun.l.google.com:19302", attrs)
+        .binding_request("stun.l.google.com:19302", None)
         .await?;
 
     let class = res.get_class();
