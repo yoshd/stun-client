@@ -4,8 +4,7 @@ use anyhow::{anyhow, Error};
 use async_std::net::UdpSocket;
 use async_std::task;
 
-use stun_client::client::*;
-use stun_client::message::*;
+use stun_client::*;
 
 fn main() -> Result<(), Error> {
     task::block_on(async {
