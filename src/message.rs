@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
+use rand::{thread_rng, Rng};
+
 use super::error::*;
 
 // Magic cookie
@@ -191,8 +193,7 @@ impl Message {
             0
         };
 
-        // Todo: Random
-        let transaction_id: Vec<u8> = vec![0; 12];
+        let transaction_id: Vec<u8> = thread_rng().gen::<[u8; 12]>().to_vec();
 
         Message {
             header: Header::new(method, class, length, transaction_id),
