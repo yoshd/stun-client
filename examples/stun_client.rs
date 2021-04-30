@@ -25,7 +25,7 @@ async fn stun_binding() -> Result<(), Error> {
     let class = res.get_class();
     match class {
         Class::SuccessResponse => {
-            let xor_mapped_addr = res.decode_attr(Attribute::XORMappedAddress);
+            let xor_mapped_addr = Attribute::get_xor_mapped_address(&res);
             println!("XOR-MAPPED-ADDRESS: {}", xor_mapped_addr.unwrap());
             Ok(())
         }

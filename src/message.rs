@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 use super::error::*;
 
@@ -19,12 +20,15 @@ pub const HEADER_BYTE_SIZE: usize = 20;
 
 // STUN Attribute
 pub const ATTR_MAPPED_ADDRESS: u16 = 0x0001;
-pub const ATTR_USERNAME: u16 = 0x0006;
 pub const ATTR_XOR_MAPPED_ADDRESS: u16 = 0x0020;
+pub const ATTR_ERROR_CODE: u16 = 0x0009;
 
 // RFC 5780 NAT Behavior Discovery
 pub const ATTR_OTHER_ADDRESS: u16 = 0x802c;
 pub const ATTR_CHANGE_REQUEST: u16 = 0x0003;
+
+pub const FAMILY_IPV4: u8 = 0x01;
+pub const FAMILY_IPV6: u8 = 0x02;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Method {
@@ -82,10 +86,10 @@ impl Class {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Attribute {
     MappedAddress,
-    Username,
     XORMappedAddress,
     OtherAddress,
     ChangeRequest,
+    ErrorCode,
     Unknown(u16),
 }
 
@@ -93,10 +97,10 @@ impl Attribute {
     pub fn from_u16(attribute: u16) -> Self {
         match attribute {
             ATTR_MAPPED_ADDRESS => Self::MappedAddress,
-            ATTR_USERNAME => Self::Username,
             ATTR_XOR_MAPPED_ADDRESS => Self::XORMappedAddress,
             ATTR_OTHER_ADDRESS => Self::OtherAddress,
             ATTR_CHANGE_REQUEST => Self::ChangeRequest,
+            ATTR_ERROR_CODE => Self::ErrorCode,
             _ => Self::Unknown(attribute),
         }
     }
@@ -104,12 +108,63 @@ impl Attribute {
     pub fn to_u16(&self) -> u16 {
         match self {
             Self::MappedAddress => ATTR_MAPPED_ADDRESS,
-            Self::Username => ATTR_USERNAME,
             Self::XORMappedAddress => ATTR_XOR_MAPPED_ADDRESS,
             Self::OtherAddress => ATTR_OTHER_ADDRESS,
             Self::ChangeRequest => ATTR_CHANGE_REQUEST,
+            Self::ErrorCode => ATTR_ERROR_CODE,
             Self::Unknown(attribute) => attribute.clone(),
         }
+    }
+
+    pub fn get_mapped_address(message: &Message) -> Option<SocketAddr> {
+        let attr_value = message.get_raw_attr_value(Self::XORMappedAddress)?;
+        let family = attr_value[1];
+        let port = u16::from_be_bytes([attr_value[2], attr_value[3]]);
+        let ip_addr = bytes_to_ip_addr(family, attr_value[4..].to_vec())?;
+        Some(SocketAddr::new(ip_addr, port))
+    }
+
+    pub fn get_xor_mapped_address(message: &Message) -> Option<SocketAddr> {
+        let attr_value = message.get_raw_attr_value(Self::XORMappedAddress)?;
+        let family = attr_value[1];
+        // RFC8489: X-Port is computed by XOR'ing the mapped port with the most significant 16 bits of the magic cookie.
+        let mc_bytes = MAGIC_COOKIE.to_be_bytes();
+        let port = u16::from_be_bytes([attr_value[2], attr_value[3]])
+            ^ u16::from_be_bytes([mc_bytes[0], mc_bytes[1]]);
+        match family {
+            FAMILY_IPV4 => {
+                // RFC8489: If the IP address family is IPv4, X-Address is computed by XOR'ing the mapped IP address with the magic cookie.
+                let encoded_ip = &attr_value[4..];
+                let b: Vec<u8> = encoded_ip
+                    .iter()
+                    .zip(&MAGIC_COOKIE.to_be_bytes())
+                    .map(|(b, m)| b ^ m)
+                    .collect();
+                let ip_addr = bytes_to_ip_addr(family, b)?;
+                Some(SocketAddr::new(ip_addr, port))
+            }
+            FAMILY_IPV6 => {
+                // RFC8489: If the IP address family is IPv6, X-Address is computed by XOR'ing the mapped IP address with the concatenation of the magic cookie and the 96-bit transaction ID.
+                let encoded_ip = &attr_value[4..];
+                let mut mc_ti: Vec<u8> = vec![];
+                mc_ti.extend(&MAGIC_COOKIE.to_be_bytes());
+                mc_ti.extend(&message.header.transaction_id);
+                let b: Vec<u8> = encoded_ip.iter().zip(&mc_ti).map(|(b, m)| b ^ m).collect();
+                let ip_addr = bytes_to_ip_addr(family, b)?;
+                Some(SocketAddr::new(ip_addr, port))
+            }
+            _ => None,
+        }
+    }
+
+    pub fn get_error_code(message: &Message) -> Option<ErrorCode> {
+        let attr_value = message.get_raw_attr_value(Self::ErrorCode)?;
+        let class = attr_value[2];
+        let number = attr_value[3];
+        let code = class as u16 + number as u16;
+        let reason = String::from_utf8(attr_value[4..].to_vec())
+            .unwrap_or(String::from("cannot parse error reason"));
+        Some(ErrorCode::from(code, reason))
     }
 }
 
@@ -183,31 +238,11 @@ impl Message {
         self.header.class
     }
 
-    pub fn decode_attr(&self, attr: Attribute) -> Option<String> {
-        let attr_value = self.attributes.as_ref()?.get(&attr)?;
-        let result = match attr {
-            Attribute::XORMappedAddress => {
-                // Todo: IPv6
-                // RFC8489: X-Port is computed by XOR'ing the mapped port with the most significant 16 bits of the magic cookie.
-                let mc_bytes = MAGIC_COOKIE.to_be_bytes();
-                let port = u16::from_be_bytes([attr_value[2], attr_value[3]])
-                    ^ u16::from_be_bytes([mc_bytes[0], mc_bytes[1]]);
-                // RFC8489: If the IP address family is IPv4, X-Address is computed by XOR'ing the mapped IP address with the magic cookie.
-                let encoded_ip = &attr_value[4..];
-                let octets: Vec<u8> = encoded_ip
-                    .iter()
-                    .zip(&MAGIC_COOKIE.to_be_bytes())
-                    .map(|(b, m)| b ^ m)
-                    .collect();
-                Some(format!(
-                    "{}.{}.{}.{}:{}",
-                    octets[0], octets[1], octets[2], octets[3], port
-                ))
-            }
-            _ => None,
-        };
-
-        result
+    pub fn get_raw_attr_value(&self, attr: Attribute) -> Option<Vec<u8>> {
+        self.attributes
+            .as_ref()?
+            .get(&attr)
+            .and_then(|v| Some(v.clone()))
     }
 
     fn decode_attrs(attrs_buf: &[u8]) -> Result<HashMap<Attribute, Vec<u8>>, STUNClientError> {
@@ -296,5 +331,41 @@ impl Header {
     fn decode_class(message_type: u16) -> Class {
         // RFC8489: C1 and C0 represent a 2-bit encoding of the class
         Class::from_u16(message_type & 0x0110)
+    }
+}
+
+fn bytes_to_ip_addr(family: u8, b: Vec<u8>) -> Option<IpAddr> {
+    match family {
+        FAMILY_IPV4 => Some(IpAddr::V4(Ipv4Addr::from([b[0], b[1], b[2], b[3]]))),
+        FAMILY_IPV6 => Some(IpAddr::V6(Ipv6Addr::from([
+            b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13],
+            b[14], b[15],
+        ]))),
+        _ => None,
+    }
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum ErrorCode {
+    TryAlternate(String),
+    BadRequest(String),
+    Unauthorized(String),
+    UnknownAttribute(String),
+    StaleNonce(String),
+    ServerError(String),
+    Unknown(String),
+}
+
+impl ErrorCode {
+    pub fn from(code: u16, reason: String) -> Self {
+        match code {
+            300 => Self::TryAlternate(reason),
+            400 => Self::BadRequest(reason),
+            401 => Self::Unauthorized(reason),
+            420 => Self::UnknownAttribute(reason),
+            438 => Self::StaleNonce(reason),
+            500 => Self::ServerError(reason),
+            _ => Self::Unknown(reason),
+        }
     }
 }
