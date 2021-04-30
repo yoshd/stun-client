@@ -29,6 +29,9 @@ pub const ATTR_ERROR_CODE: u16 = 0x0009;
 pub const ATTR_OTHER_ADDRESS: u16 = 0x802c;
 pub const ATTR_CHANGE_REQUEST: u16 = 0x0003;
 
+pub const CHANGE_REQUEST_IP_FLAG: u32 = 0x00000004;
+pub const CHANGE_REQUEST_PORT_FLAG: u32 = 0x00000002;
+
 pub const FAMILY_IPV4: u8 = 0x01;
 pub const FAMILY_IPV6: u8 = 0x02;
 
@@ -119,11 +122,7 @@ impl Attribute {
     }
 
     pub fn get_mapped_address(message: &Message) -> Option<SocketAddr> {
-        let attr_value = message.get_raw_attr_value(Self::XORMappedAddress)?;
-        let family = attr_value[1];
-        let port = u16::from_be_bytes([attr_value[2], attr_value[3]]);
-        let ip_addr = bytes_to_ip_addr(family, attr_value[4..].to_vec())?;
-        Some(SocketAddr::new(ip_addr, port))
+        Self::decode_simple_address_attribute(message, Self::MappedAddress)
     }
 
     pub fn get_xor_mapped_address(message: &Message) -> Option<SocketAddr> {
@@ -167,6 +166,33 @@ impl Attribute {
         let reason = String::from_utf8(attr_value[4..].to_vec())
             .unwrap_or(String::from("cannot parse error reason"));
         Some(ErrorCode::from(code, reason))
+    }
+
+    pub fn get_other_address(message: &Message) -> Option<SocketAddr> {
+        // RFC5780: it is simply a new name with the same semantics as CHANGED-ADDRESS.
+        // RCF3489: Its syntax is identical to MAPPED-ADDRESS.
+        Self::decode_simple_address_attribute(message, Self::OtherAddress)
+    }
+
+    pub fn generate_change_request_value(change_ip: bool, change_port: bool) -> Vec<u8> {
+        let mut value: u32 = 0;
+        if change_ip {
+            value |= CHANGE_REQUEST_IP_FLAG;
+        }
+
+        if change_port {
+            value |= CHANGE_REQUEST_PORT_FLAG;
+        }
+
+        value.to_be_bytes().to_vec()
+    }
+
+    pub fn decode_simple_address_attribute(message: &Message, attr: Self) -> Option<SocketAddr> {
+        let attr_value = message.get_raw_attr_value(attr)?;
+        let family = attr_value[1];
+        let port = u16::from_be_bytes([attr_value[2], attr_value[3]]);
+        let ip_addr = bytes_to_ip_addr(family, attr_value[4..].to_vec())?;
+        Some(SocketAddr::new(ip_addr, port))
     }
 }
 
