@@ -196,7 +196,7 @@ impl Attribute {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Message {
     header: Header,
     attributes: Option<HashMap<Attribute, Vec<u8>>>,
@@ -299,7 +299,7 @@ impl Message {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Header {
     method: Method,
     class: Class,
@@ -332,7 +332,8 @@ impl Header {
             class: class,
             method: method,
             length: length,
-            transaction_id: buf,
+            // 0..3 is Magic Cookie
+            transaction_id: buf[4..].to_vec(),
         })
     }
 
@@ -352,7 +353,7 @@ impl Header {
 
     fn decode_method(message_type: u16) -> Method {
         // RFC8489: M11 through M0 represent a 12-bit encoding of the method
-        Method::from_u16(message_type & 0x3DDE)
+        Method::from_u16(message_type & 0x3EEF)
     }
 
     fn decode_class(message_type: u16) -> Class {
@@ -394,5 +395,20 @@ impl ErrorCode {
             500 => Self::ServerError(reason),
             _ => Self::Unknown(reason),
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn message_new_and_message_from_raw_are_equivalent() {
+        let mut attrs = HashMap::new();
+        attrs.insert(Attribute::ChangeRequest, Attribute::generate_change_request_value(true, false));
+        let msg = Message::new(Method::Binding, Class::Request, Some(attrs));
+        let re_built_msg = Message::from_raw(&msg.to_raw()).unwrap();
+        assert_eq!(msg, re_built_msg);
     }
 }
