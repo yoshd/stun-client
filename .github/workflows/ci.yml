@@ -1,4 +1,4 @@
-name: Rust
+name: Test
 
 on:
   push:
@@ -19,4 +19,4 @@ jobs:
     - name: Run tests
       run: cargo test --verbose
     - name: Run example
-      run: argo run --example stun_client --verbose
+      run: cargo run --example stun_client --verbose
