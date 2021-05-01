@@ -20,7 +20,7 @@ pub const CLASS_ERROR_RESPONSE: u16 = 0x0110;
 // STUN Header size
 pub const HEADER_BYTE_SIZE: usize = 20;
 
-// STUN Attribute
+// STUN Attributes
 pub const ATTR_MAPPED_ADDRESS: u16 = 0x0001;
 pub const ATTR_XOR_MAPPED_ADDRESS: u16 = 0x0020;
 pub const ATTR_ERROR_CODE: u16 = 0x0009;
