@@ -18,5 +18,5 @@ jobs:
     - uses: actions/checkout@v2
     - name: Run tests
       run: cargo test --verbose
-    - name: Run example
+    - name: Run examples
       run: cargo run --example stun_client --verbose

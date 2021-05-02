@@ -6,4 +6,8 @@ pub enum STUNClientError {
     ParseError(),
     #[error(transparent)]
     IOError(#[from] std::io::Error),
+    #[error("not supported by the server: {0}")]
+    NotSupportedError(String),
+    #[error("request timeout")]
+    TimeoutError(),
 }

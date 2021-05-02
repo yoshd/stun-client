@@ -20,7 +20,7 @@ pub const CLASS_ERROR_RESPONSE: u16 = 0x0110;
 // STUN Header size
 pub const HEADER_BYTE_SIZE: usize = 20;
 
-// STUN Attribute
+// STUN Attributes
 pub const ATTR_MAPPED_ADDRESS: u16 = 0x0001;
 pub const ATTR_XOR_MAPPED_ADDRESS: u16 = 0x0020;
 pub const ATTR_ERROR_CODE: u16 = 0x0009;
@@ -398,7 +398,6 @@ impl ErrorCode {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -406,7 +405,10 @@ mod tests {
     #[test]
     fn message_new_and_message_from_raw_are_equivalent() {
         let mut attrs = HashMap::new();
-        attrs.insert(Attribute::ChangeRequest, Attribute::generate_change_request_value(true, false));
+        attrs.insert(
+            Attribute::ChangeRequest,
+            Attribute::generate_change_request_value(true, false),
+        );
         let msg = Message::new(Method::Binding, Class::Request, Some(attrs));
         let re_built_msg = Message::from_raw(&msg.to_raw()).unwrap();
         assert_eq!(msg, re_built_msg);

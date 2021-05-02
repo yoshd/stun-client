@@ -9,4 +9,5 @@ It also supports the OTHER-ADDRESS and CHANGE-REQUEST attributes for [RFC5780](h
 
 ## Examples
 
-[Simple STUN Binding](examples/stun_client.rs)
+- [Simple STUN Binding](examples/stun_client.rs)
+- [NAT Behavior Discovery](examples/nat_behavior_discovery.rs)
