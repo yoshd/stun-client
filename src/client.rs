@@ -18,6 +18,13 @@ use super::message::*;
 const DEFAULT_RECV_TIMEOUT_MS: u64 = 3000;
 const DEFAULT_RECV_BUF_SIZE: usize = 1024;
 
+/// STUN client options.
+#[derive(Clone, Debug)]
+pub struct Options {
+    pub recv_timeout_ms: u64,
+    pub recv_buf_size: usize,
+}
+
 /// STUN client.
 /// The transport protocol is UDP only and only supports simple STUN Binding requests.
 pub struct Client {
@@ -30,7 +37,10 @@ pub struct Client {
 
 impl Client {
     /// Create a Client.
-    pub async fn new<A: ToSocketAddrs>(local_bind_addr: A) -> Result<Client, STUNClientError> {
+    pub async fn new<A: ToSocketAddrs>(
+        local_bind_addr: A,
+        opts: Option<Options>,
+    ) -> Result<Client, STUNClientError> {
         let socket = UdpSocket::bind(local_bind_addr)
             .await
             .map_err(|e| STUNClientError::IOError(e))?;
@@ -38,35 +48,49 @@ impl Client {
         let transactions = Arc::new(Mutex::new(HashMap::new()));
         let running = Arc::new(AtomicBool::new(true));
         let (tx, rx) = mpsc::channel(1);
+        let recv_timeout_ms = opts
+            .clone()
+            .map(|o| o.recv_timeout_ms)
+            .unwrap_or_else(|| DEFAULT_RECV_TIMEOUT_MS);
         let client = Client {
             socket: socket.clone(),
-            recv_timeout_ms: DEFAULT_RECV_TIMEOUT_MS,
+            recv_timeout_ms: recv_timeout_ms,
             transactions: transactions.clone(),
             running: running.clone(),
             stop_tx: tx,
         };
-        task::spawn(async {
-            Self::run_message_receiver(socket, DEFAULT_RECV_BUF_SIZE, running, rx, transactions)
-                .await
+
+        let recv_buf_size = opts
+            .map(|o| o.recv_buf_size)
+            .unwrap_or_else(|| DEFAULT_RECV_BUF_SIZE);
+        task::spawn(async move {
+            Self::run_message_receiver(socket, recv_buf_size, running, rx, transactions).await
         });
         Ok(client)
     }
 
     /// Create a Client from async_std::net::UdpSocket.
-    pub fn from_socket(socket: Arc<UdpSocket>) -> Client {
+    pub fn from_socket(socket: Arc<UdpSocket>, opts: Option<Options>) -> Client {
         let transactions = Arc::new(Mutex::new(HashMap::new()));
         let running = Arc::new(AtomicBool::new(true));
         let (tx, rx) = mpsc::channel(1);
+        let recv_timeout_ms = opts
+            .clone()
+            .map(|o| o.recv_timeout_ms)
+            .unwrap_or_else(|| DEFAULT_RECV_TIMEOUT_MS);
         let client = Client {
             socket: socket.clone(),
-            recv_timeout_ms: DEFAULT_RECV_TIMEOUT_MS,
+            recv_timeout_ms: recv_timeout_ms,
             transactions: transactions.clone(),
             running: running.clone(),
             stop_tx: tx,
         };
-        task::spawn(async {
-            Self::run_message_receiver(socket, DEFAULT_RECV_BUF_SIZE, running, rx, transactions)
-                .await
+
+        let recv_buf_size = opts
+            .map(|o| o.recv_buf_size)
+            .unwrap_or_else(|| DEFAULT_RECV_BUF_SIZE);
+        task::spawn(async move {
+            Self::run_message_receiver(socket, recv_buf_size, running, rx, transactions).await
         });
         client
     }

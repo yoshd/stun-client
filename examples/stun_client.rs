@@ -11,7 +11,7 @@ fn main() -> Result<(), Error> {
 }
 
 async fn stun_binding() -> Result<(), Error> {
-    let mut client = Client::new("0.0.0.0:0").await?;
+    let mut client = Client::new("0.0.0.0:0", None).await?;
     let res = client
         .binding_request("stun.l.google.com:19302", None)
         .await?;

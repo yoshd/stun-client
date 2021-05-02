@@ -1,16 +1,16 @@
 //! This is a simple async_std based asynchronous STUN client library.
 //! At the moment only some features of [RFC8489](https://tools.ietf.org/html/rfc8489) are implemented and only simple binding requests are possible.
-//! 
+//!
 //! It also supports the OTHER-ADDRESS and CHANGE-REQUEST attributes for [RFC5780](https://tools.ietf.org/html/rfc5780) -based NAT Behavior Discovery
-//! 
+//!
 //! ## Example
-//! 
+//!
 //! ```
 //! use async_std::task;
 //! use stun_client::*;
-//! 
+//!
 //! task::block_on(async {
-//!     let mut client = Client::new("0.0.0.0:0").await.unwrap();
+//!     let mut client = Client::new("0.0.0.0:0", None).await.unwrap();
 //!     let res = client
 //!         .binding_request("stun.l.google.com:19302", None)
 //!         .await
