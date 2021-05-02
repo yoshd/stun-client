@@ -1,3 +1,4 @@
+//! This module is a thread-safe async-std-based asynchronous STUN client.
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -17,6 +18,8 @@ use super::message::*;
 const DEFAULT_RECV_TIMEOUT_MS: u64 = 3000;
 const DEFAULT_RECV_BUF_SIZE: usize = 1024;
 
+/// STUN client.
+/// The transport protocol is UDP only and only supports simple STUN Binding requests.
 pub struct Client {
     socket: Arc<UdpSocket>,
     recv_timeout_ms: u64,
@@ -26,6 +29,7 @@ pub struct Client {
 }
 
 impl Client {
+    /// Create a Client.
     pub async fn new<A: ToSocketAddrs>(local_bind_addr: A) -> Result<Client, STUNClientError> {
         let socket = UdpSocket::bind(local_bind_addr)
             .await
@@ -48,6 +52,7 @@ impl Client {
         Ok(client)
     }
 
+    /// Create a Client from async_std::net::UdpSocket.
     pub fn from_socket(socket: Arc<UdpSocket>) -> Client {
         let transactions = Arc::new(Mutex::new(HashMap::new()));
         let running = Arc::new(AtomicBool::new(true));
@@ -66,6 +71,7 @@ impl Client {
         client
     }
 
+    /// Send STUN Binding request asynchronously.
     pub async fn binding_request<A: ToSocketAddrs>(
         &mut self,
         stun_addr: A,

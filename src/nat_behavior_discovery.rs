@@ -1,3 +1,5 @@
+//! This module is for NAT Behavior Discovery based on RFC5780.
+//! To use this module, the STUN server side must support the OTHER-ADDRESS and CHANGE-REQUEST attributes.
 use std::collections::HashMap;
 use std::net::IpAddr;
 
@@ -9,6 +11,7 @@ use super::client::*;
 use super::error::*;
 use super::message::*;
 
+/// Defines a NAT type based on mapping behavior.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum NATMappingType {
     NoNAT,
@@ -18,6 +21,7 @@ pub enum NATMappingType {
     Unknown,
 }
 
+/// Defines a NAT type based on filtering behavior.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum NATFilteringType {
     EndpointIndependent,
@@ -26,6 +30,7 @@ pub enum NATFilteringType {
     Unknown,
 }
 
+/// Results of behavior discovery based on NAT mapping behavior.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NATMappingTypeResult {
     pub test1_xor_mapped_addr: Option<SocketAddr>,
@@ -34,12 +39,14 @@ pub struct NATMappingTypeResult {
     pub mapping_type: NATMappingType,
 }
 
+/// Results of behavior discovery based on NAT filtering behavior.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NATFilteringTypeResult {
     pub xor_mapped_addr: Option<SocketAddr>,
     pub filtering_type: NATFilteringType,
 }
 
+/// Check NAT mapping behavior.
 pub async fn check_nat_mapping_behavior<A: ToSocketAddrs>(
     client: &mut Client,
     stun_addr: A,
@@ -123,6 +130,7 @@ pub async fn check_nat_mapping_behavior<A: ToSocketAddrs>(
     Ok(result)
 }
 
+/// Check NAT filtering behavior.
 pub async fn check_nat_filtering_behavior<A: ToSocketAddrs>(
     client: &mut Client,
     stun_addr: A,
