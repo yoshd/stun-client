@@ -1,5 +1,6 @@
 use thiserror::Error;
 
+/// Defines the error used by the stun_client library.
 #[derive(Error, Debug)]
 pub enum STUNClientError {
     #[error("cannot parse as STUN message")]

@@ -1,3 +1,4 @@
+//! This module implements some of the STUN protocol message processing based on RFC 8489 and RFC 5780.
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
@@ -5,36 +6,49 @@ use rand::{thread_rng, Rng};
 
 use super::error::*;
 
-// Magic cookie
+/// Magic cookie
 pub const MAGIC_COOKIE: u32 = 0x2112A442;
 
 // Methods
+/// Binding method
 pub const METHOD_BINDING: u16 = 0x0001;
 
 // Classes
+/// A constant that represents a class request
 pub const CLASS_REQUEST: u16 = 0x0000;
+/// A constant that represents a class indication
 pub const CLASS_INDICATION: u16 = 0x0010;
+/// A constant that represents a class success response
 pub const CLASS_SUCCESS_RESPONSE: u16 = 0x0100;
+/// A constant that represents a class error response
 pub const CLASS_ERROR_RESPONSE: u16 = 0x0110;
 
-// STUN Header size
+/// STUN header size
 pub const HEADER_BYTE_SIZE: usize = 20;
 
 // STUN Attributes
+/// MAPPED-ADDRESS attribute
 pub const ATTR_MAPPED_ADDRESS: u16 = 0x0001;
+/// XOR-MAPPED-ADDRESS attribute
 pub const ATTR_XOR_MAPPED_ADDRESS: u16 = 0x0020;
+/// ERROR-CODE attribute
 pub const ATTR_ERROR_CODE: u16 = 0x0009;
 
 // RFC 5780 NAT Behavior Discovery
+/// OTHER-ADDRESS attribute
 pub const ATTR_OTHER_ADDRESS: u16 = 0x802c;
+/// CHANGE-REQUEST attribute
 pub const ATTR_CHANGE_REQUEST: u16 = 0x0003;
 
+/// The "change IP" flag for the CHANGE-REQUEST attribute.
 pub const CHANGE_REQUEST_IP_FLAG: u32 = 0x00000004;
+/// The "change port" flag for the CHANGE-REQUEST attribute.
 pub const CHANGE_REQUEST_PORT_FLAG: u32 = 0x00000002;
 
 pub const FAMILY_IPV4: u8 = 0x01;
 pub const FAMILY_IPV6: u8 = 0x02;
 
+/// Enum representing STUN method
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Method {
     Binding,
@@ -42,6 +56,7 @@ pub enum Method {
 }
 
 impl Method {
+    /// Convert from u16 to Method.
     pub fn from_u16(method: u16) -> Self {
         match method {
             METHOD_BINDING => Self::Binding,
@@ -49,6 +64,7 @@ impl Method {
         }
     }
 
+    /// Convert from Method to u16.
     pub fn to_u16(&self) -> u16 {
         match self {
             Self::Binding => METHOD_BINDING,
@@ -57,6 +73,7 @@ impl Method {
     }
 }
 
+/// Enum representing STUN class
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Class {
     Request,
@@ -67,6 +84,7 @@ pub enum Class {
 }
 
 impl Class {
+    /// Convert from u16 to Class.
     pub fn from_u16(class: u16) -> Self {
         match class {
             CLASS_REQUEST => Self::Request,
@@ -77,6 +95,7 @@ impl Class {
         }
     }
 
+    /// Convert from u16 to Class.
     pub fn to_u16(&self) -> u16 {
         match self {
             Self::Request => CLASS_REQUEST,
@@ -88,6 +107,7 @@ impl Class {
     }
 }
 
+/// Enum representing STUN attribute
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Attribute {
     MappedAddress,
@@ -99,6 +119,7 @@ pub enum Attribute {
 }
 
 impl Attribute {
+    /// Convert from u16 to Attribute.
     pub fn from_u16(attribute: u16) -> Self {
         match attribute {
             ATTR_MAPPED_ADDRESS => Self::MappedAddress,
@@ -110,6 +131,7 @@ impl Attribute {
         }
     }
 
+    /// Convert from u16 to Attribute.
     pub fn to_u16(&self) -> u16 {
         match self {
             Self::MappedAddress => ATTR_MAPPED_ADDRESS,
@@ -121,10 +143,12 @@ impl Attribute {
         }
     }
 
+    /// Gets the value of the MAPPED-ADDRESS attribute from Message.
     pub fn get_mapped_address(message: &Message) -> Option<SocketAddr> {
         Self::decode_simple_address_attribute(message, Self::MappedAddress)
     }
 
+    /// Gets the value of the XOR-MAPPED-ADDRESS attribute from Message.
     pub fn get_xor_mapped_address(message: &Message) -> Option<SocketAddr> {
         let attr_value = message.get_raw_attr_value(Self::XORMappedAddress)?;
         let family = attr_value[1];
@@ -158,6 +182,7 @@ impl Attribute {
         }
     }
 
+    /// Gets the value of the ERROR-CODE attribute from Message.
     pub fn get_error_code(message: &Message) -> Option<ErrorCode> {
         let attr_value = message.get_raw_attr_value(Self::ErrorCode)?;
         let class = attr_value[2];
@@ -168,12 +193,14 @@ impl Attribute {
         Some(ErrorCode::from(code, reason))
     }
 
+    /// Gets the value of the OTHER-ADDRESS attribute from Message.
     pub fn get_other_address(message: &Message) -> Option<SocketAddr> {
         // RFC5780: it is simply a new name with the same semantics as CHANGED-ADDRESS.
         // RCF3489: Its syntax is identical to MAPPED-ADDRESS.
         Self::decode_simple_address_attribute(message, Self::OtherAddress)
     }
 
+    /// Generates a value for the CHANGE-REQUEST attribute.
     pub fn generate_change_request_value(change_ip: bool, change_port: bool) -> Vec<u8> {
         let mut value: u32 = 0;
         if change_ip {
@@ -196,6 +223,7 @@ impl Attribute {
     }
 }
 
+/// Struct representing STUN message
 #[derive(Debug, Eq, PartialEq)]
 pub struct Message {
     header: Header,
@@ -203,6 +231,7 @@ pub struct Message {
 }
 
 impl Message {
+    /// Create a STUN Message.
     pub fn new(
         method: Method,
         class: Class,
@@ -227,6 +256,7 @@ impl Message {
         }
     }
 
+    /// Create a STUN message from raw bytes.
     pub fn from_raw(buf: &[u8]) -> Result<Message, STUNClientError> {
         if buf.len() < HEADER_BYTE_SIZE {
             return Err(STUNClientError::ParseError());
@@ -244,6 +274,7 @@ impl Message {
         })
     }
 
+    /// Converts a Message to a STUN protocol message raw bytes.
     pub fn to_raw(&self) -> Vec<u8> {
         let mut bytes = self.header.to_raw();
         if let Some(attributes) = &self.attributes {
@@ -257,14 +288,17 @@ impl Message {
         bytes
     }
 
+    /// Get the method from Message.
     pub fn get_method(&self) -> Method {
         self.header.method
     }
 
+    /// Get the class from Message.
     pub fn get_class(&self) -> Class {
         self.header.class
     }
 
+    /// Get the raw attribute bytes from Message.
     pub fn get_raw_attr_value(&self, attr: Attribute) -> Option<Vec<u8>> {
         self.attributes
             .as_ref()?
@@ -272,6 +306,7 @@ impl Message {
             .and_then(|v| Some(v.clone()))
     }
 
+    /// Get the transaction id from Message.
     pub fn get_transaction_id(&self) -> Vec<u8> {
         self.header.transaction_id.clone()
     }
@@ -303,6 +338,7 @@ impl Message {
     }
 }
 
+/// Struct representing STUN header
 #[derive(Debug, Eq, PartialEq)]
 pub struct Header {
     method: Method,
@@ -312,6 +348,7 @@ pub struct Header {
 }
 
 impl Header {
+    /// Create a STUN header.
     pub fn new(method: Method, class: Class, length: u16, transaction_id: Vec<u8>) -> Header {
         Header {
             class: class,
@@ -321,6 +358,7 @@ impl Header {
         }
     }
 
+    /// Create a STUN header from raw bytes.
     pub fn from_raw(buf: &[u8]) -> Result<Header, STUNClientError> {
         let mut buf = buf.to_vec();
         if buf.len() < HEADER_BYTE_SIZE {
@@ -341,6 +379,7 @@ impl Header {
         })
     }
 
+    /// Converts a Header to a STUN protocol header raw bytes.
     pub fn to_raw(&self) -> Vec<u8> {
         let message_type = self.message_type();
         let mut bytes = vec![];
@@ -377,6 +416,7 @@ fn bytes_to_ip_addr(family: u8, b: Vec<u8>) -> Option<IpAddr> {
     }
 }
 
+/// An enum that defines the type of STUN error code.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum ErrorCode {
     TryAlternate(String),
