@@ -41,7 +41,7 @@ pub struct NATFilteringTypeResult {
 }
 
 pub async fn check_nat_mapping_behavior<A: ToSocketAddrs>(
-    client: &Client,
+    client: &mut Client,
     stun_addr: A,
 ) -> Result<NATMappingTypeResult, STUNClientError> {
     let mut result = NATMappingTypeResult {
@@ -124,7 +124,7 @@ pub async fn check_nat_mapping_behavior<A: ToSocketAddrs>(
 }
 
 pub async fn check_nat_filtering_behavior<A: ToSocketAddrs>(
-    client: &Client,
+    client: &mut Client,
     stun_addr: A,
 ) -> Result<NATFilteringTypeResult, STUNClientError> {
     // Test1

@@ -10,4 +10,15 @@ pub enum STUNClientError {
     NotSupportedError(String),
     #[error("request timeout")]
     TimeoutError(),
+    #[error("unknown error: {0}")]
+    Unknown(String),
+}
+
+impl Clone for STUNClientError {
+    fn clone(&self) -> Self {
+        match self {
+            Self::IOError(e) => Self::IOError(std::io::Error::new(e.kind(), e.to_string())),
+            _ => self.clone(),
+        }
+    }
 }

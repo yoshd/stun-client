@@ -1,7 +1,4 @@
-use std::rc::Rc;
-
 use anyhow::{anyhow, Error};
-use async_std::net::UdpSocket;
 use async_std::task;
 
 use stun_client::*;
@@ -14,9 +11,7 @@ fn main() -> Result<(), Error> {
 }
 
 async fn stun_binding() -> Result<(), Error> {
-    let socket = UdpSocket::bind("0.0.0.0:0").await?;
-    let socket = Rc::new(socket);
-    let client = Client::from_socket(socket.clone());
+    let mut client = Client::new("0.0.0.0:0").await?;
     let res = client
         .binding_request("stun.l.google.com:19302", None)
         .await?;
