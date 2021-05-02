@@ -21,15 +21,15 @@ fn main() -> Result<(), Error> {
 }
 
 async fn nat_behavior_discovery<A: ToSocketAddrs>(stun_addr: A) -> Result<(), Error> {
-    let client = Client::new("0.0.0.0:0").await?;
+    let mut client = Client::new("0.0.0.0:0").await?;
     let result =
-        stun_client::nat_behavior_discovery::check_nat_mapping_behavior(&client, &stun_addr)
+        stun_client::nat_behavior_discovery::check_nat_mapping_behavior(&mut client, &stun_addr)
             .await?;
     println!("NAT Mapping Type: {:?}", result.mapping_type);
 
-    let client = Client::new("0.0.0.0:0").await?;
+    let mut client = Client::new("0.0.0.0:0").await?;
     let result =
-        stun_client::nat_behavior_discovery::check_nat_filtering_behavior(&client, &stun_addr)
+        stun_client::nat_behavior_discovery::check_nat_filtering_behavior(&mut client, &stun_addr)
             .await?;
     println!("NAT Filtering Type: {:?}", result.filtering_type);
     Ok(())

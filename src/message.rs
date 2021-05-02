@@ -272,6 +272,10 @@ impl Message {
             .and_then(|v| Some(v.clone()))
     }
 
+    pub fn get_transaction_id(&self) -> Vec<u8> {
+        self.header.transaction_id.clone()
+    }
+
     fn decode_attrs(attrs_buf: &[u8]) -> Result<HashMap<Attribute, Vec<u8>>, STUNClientError> {
         let mut attrs_buf = attrs_buf.to_vec();
         let mut attributes = HashMap::new();
