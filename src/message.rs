@@ -398,7 +398,6 @@ impl ErrorCode {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -406,7 +405,10 @@ mod tests {
     #[test]
     fn message_new_and_message_from_raw_are_equivalent() {
         let mut attrs = HashMap::new();
-        attrs.insert(Attribute::ChangeRequest, Attribute::generate_change_request_value(true, false));
+        attrs.insert(
+            Attribute::ChangeRequest,
+            Attribute::generate_change_request_value(true, false),
+        );
         let msg = Message::new(Method::Binding, Class::Request, Some(attrs));
         let re_built_msg = Message::from_raw(&msg.to_raw()).unwrap();
         assert_eq!(msg, re_built_msg);
