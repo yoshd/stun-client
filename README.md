@@ -7,6 +7,10 @@ At the moment only some features of [RFC8489](https://tools.ietf.org/html/rfc848
 
 It also supports the OTHER-ADDRESS and CHANGE-REQUEST attributes for [RFC5780](https://tools.ietf.org/html/rfc5780) -based NAT Behavior Discovery.
 
+[Install](https://crates.io/crates/stun-client)
+
+[Documentation](https://docs.rs/stun-client/)
+
 ## Examples
 
 - [Simple STUN Binding](examples/stun_client.rs)
