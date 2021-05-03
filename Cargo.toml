@@ -1,8 +1,15 @@
 [package]
-name = "stun_client"
+name = "stun-client"
+license = "MIT"
 version = "0.1.0"
 authors = ["yoshd <yoshd.develop@gmail.com>"]
 edition = "2018"
+readme = "README.md"
+description = "This is a simple async_std based asynchronous STUN client library."
+repository = "https://github.com/yoshd/stun-client.git"
+documentation = "https://docs.rs/stun-client/"
+categories = ["asynchronous", "network-programming"]
+keywords = ["stun", "nat", "p2p", "udp"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
