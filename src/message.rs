@@ -315,11 +315,15 @@ impl Message {
         let mut attrs_buf = attrs_buf.to_vec();
         let mut attributes = HashMap::new();
 
-        if attrs_buf.len() < 4 {
+        if attrs_buf.is_empty() {
             return Err(STUNClientError::ParseError());
         }
 
         while !attrs_buf.is_empty() {
+            if attrs_buf.len() < 4 {
+                return Err(STUNClientError::ParseError());
+            }
+
             let attribute_type = Attribute::from_u16(u16::from_be_bytes([
                 attrs_buf.remove(0),
                 attrs_buf.remove(0),
