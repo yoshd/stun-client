@@ -185,9 +185,9 @@ impl Attribute {
     /// Gets the value of the ERROR-CODE attribute from Message.
     pub fn get_error_code(message: &Message) -> Option<ErrorCode> {
         let attr_value = message.get_raw_attr_value(Self::ErrorCode)?;
-        let class = attr_value[2];
-        let number = attr_value[3];
-        let code = class as u16 + number as u16;
+        let class = (attr_value[2] as u16) * 100;
+        let number = attr_value[3] as u16;
+        let code = class + number;
         let reason = String::from_utf8(attr_value[4..].to_vec())
             .unwrap_or(String::from("cannot parse error reason"));
         Some(ErrorCode::from(code, reason))
