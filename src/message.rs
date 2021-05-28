@@ -39,6 +39,8 @@ pub const ATTR_ERROR_CODE: u16 = 0x0009;
 pub const ATTR_OTHER_ADDRESS: u16 = 0x802c;
 /// CHANGE-REQUEST attribute
 pub const ATTR_CHANGE_REQUEST: u16 = 0x0003;
+/// RESPONSE-ORIGIN attribute
+pub const ATTR_RESPONSE_ORIGIN: u16 = 0x802b;
 
 /// The "change IP" flag for the CHANGE-REQUEST attribute.
 pub const CHANGE_REQUEST_IP_FLAG: u32 = 0x00000004;
@@ -114,6 +116,7 @@ pub enum Attribute {
     XORMappedAddress,
     OtherAddress,
     ChangeRequest,
+    ResponseOrigin,
     ErrorCode,
     Unknown(u16),
 }
@@ -126,6 +129,7 @@ impl Attribute {
             ATTR_XOR_MAPPED_ADDRESS => Self::XORMappedAddress,
             ATTR_OTHER_ADDRESS => Self::OtherAddress,
             ATTR_CHANGE_REQUEST => Self::ChangeRequest,
+            ATTR_RESPONSE_ORIGIN => Self::ResponseOrigin,
             ATTR_ERROR_CODE => Self::ErrorCode,
             _ => Self::Unknown(attribute),
         }
@@ -138,6 +142,7 @@ impl Attribute {
             Self::XORMappedAddress => ATTR_XOR_MAPPED_ADDRESS,
             Self::OtherAddress => ATTR_OTHER_ADDRESS,
             Self::ChangeRequest => ATTR_CHANGE_REQUEST,
+            Self::ResponseOrigin => ATTR_RESPONSE_ORIGIN,
             Self::ErrorCode => ATTR_ERROR_CODE,
             Self::Unknown(attribute) => attribute.clone(),
         }
@@ -198,6 +203,11 @@ impl Attribute {
         // RFC5780: it is simply a new name with the same semantics as CHANGED-ADDRESS.
         // RCF3489: Its syntax is identical to MAPPED-ADDRESS.
         Self::decode_simple_address_attribute(message, Self::OtherAddress)
+    }
+
+    /// Gets the value of the RESPONSE-ORIGIN attribute from Message.
+    pub fn get_response_origin(message: &Message) -> Option<SocketAddr> {
+        Self::decode_simple_address_attribute(message, Self::ResponseOrigin)
     }
 
     /// Generates a value for the CHANGE-REQUEST attribute.
