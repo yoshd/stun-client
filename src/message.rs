@@ -33,6 +33,8 @@ pub const ATTR_MAPPED_ADDRESS: u16 = 0x0001;
 pub const ATTR_XOR_MAPPED_ADDRESS: u16 = 0x0020;
 /// ERROR-CODE attribute
 pub const ATTR_ERROR_CODE: u16 = 0x0009;
+/// SOFTWARE attribute
+pub const ATTR_SOFTWARE: u16 = 0x8022;
 
 // RFC 5780 NAT Behavior Discovery
 /// OTHER-ADDRESS attribute
@@ -114,6 +116,7 @@ impl Class {
 pub enum Attribute {
     MappedAddress,
     XORMappedAddress,
+    Software,
     OtherAddress,
     ChangeRequest,
     ResponseOrigin,
@@ -127,6 +130,7 @@ impl Attribute {
         match attribute {
             ATTR_MAPPED_ADDRESS => Self::MappedAddress,
             ATTR_XOR_MAPPED_ADDRESS => Self::XORMappedAddress,
+            ATTR_SOFTWARE => Self::Software,
             ATTR_OTHER_ADDRESS => Self::OtherAddress,
             ATTR_CHANGE_REQUEST => Self::ChangeRequest,
             ATTR_RESPONSE_ORIGIN => Self::ResponseOrigin,
@@ -140,6 +144,7 @@ impl Attribute {
         match self {
             Self::MappedAddress => ATTR_MAPPED_ADDRESS,
             Self::XORMappedAddress => ATTR_XOR_MAPPED_ADDRESS,
+            Self::Software => ATTR_SOFTWARE,
             Self::OtherAddress => ATTR_OTHER_ADDRESS,
             Self::ChangeRequest => ATTR_CHANGE_REQUEST,
             Self::ResponseOrigin => ATTR_RESPONSE_ORIGIN,
@@ -185,6 +190,12 @@ impl Attribute {
             }
             _ => None,
         }
+    }
+
+    /// Gets the value of the SOFTWARE attribute from message.
+    pub fn get_software(message: &Message) -> Option<String> {
+        let attr_value = message.get_raw_attr_value(Self::Software)?;
+        String::from_utf8(attr_value).ok()
     }
 
     /// Gets the value of the ERROR-CODE attribute from Message.
