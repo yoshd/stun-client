@@ -33,12 +33,16 @@ pub const ATTR_MAPPED_ADDRESS: u16 = 0x0001;
 pub const ATTR_XOR_MAPPED_ADDRESS: u16 = 0x0020;
 /// ERROR-CODE attribute
 pub const ATTR_ERROR_CODE: u16 = 0x0009;
+/// SOFTWARE attribute
+pub const ATTR_SOFTWARE: u16 = 0x8022;
 
 // RFC 5780 NAT Behavior Discovery
 /// OTHER-ADDRESS attribute
 pub const ATTR_OTHER_ADDRESS: u16 = 0x802c;
 /// CHANGE-REQUEST attribute
 pub const ATTR_CHANGE_REQUEST: u16 = 0x0003;
+/// RESPONSE-ORIGIN attribute
+pub const ATTR_RESPONSE_ORIGIN: u16 = 0x802b;
 
 /// The "change IP" flag for the CHANGE-REQUEST attribute.
 pub const CHANGE_REQUEST_IP_FLAG: u32 = 0x00000004;
@@ -112,8 +116,10 @@ impl Class {
 pub enum Attribute {
     MappedAddress,
     XORMappedAddress,
+    Software,
     OtherAddress,
     ChangeRequest,
+    ResponseOrigin,
     ErrorCode,
     Unknown(u16),
 }
@@ -124,8 +130,10 @@ impl Attribute {
         match attribute {
             ATTR_MAPPED_ADDRESS => Self::MappedAddress,
             ATTR_XOR_MAPPED_ADDRESS => Self::XORMappedAddress,
+            ATTR_SOFTWARE => Self::Software,
             ATTR_OTHER_ADDRESS => Self::OtherAddress,
             ATTR_CHANGE_REQUEST => Self::ChangeRequest,
+            ATTR_RESPONSE_ORIGIN => Self::ResponseOrigin,
             ATTR_ERROR_CODE => Self::ErrorCode,
             _ => Self::Unknown(attribute),
         }
@@ -136,8 +144,10 @@ impl Attribute {
         match self {
             Self::MappedAddress => ATTR_MAPPED_ADDRESS,
             Self::XORMappedAddress => ATTR_XOR_MAPPED_ADDRESS,
+            Self::Software => ATTR_SOFTWARE,
             Self::OtherAddress => ATTR_OTHER_ADDRESS,
             Self::ChangeRequest => ATTR_CHANGE_REQUEST,
+            Self::ResponseOrigin => ATTR_RESPONSE_ORIGIN,
             Self::ErrorCode => ATTR_ERROR_CODE,
             Self::Unknown(attribute) => attribute.clone(),
         }
@@ -182,6 +192,12 @@ impl Attribute {
         }
     }
 
+    /// Gets the value of the SOFTWARE attribute from message.
+    pub fn get_software(message: &Message) -> Option<String> {
+        let attr_value = message.get_raw_attr_value(Self::Software)?;
+        String::from_utf8(attr_value).ok()
+    }
+
     /// Gets the value of the ERROR-CODE attribute from Message.
     pub fn get_error_code(message: &Message) -> Option<ErrorCode> {
         let attr_value = message.get_raw_attr_value(Self::ErrorCode)?;
@@ -198,6 +214,11 @@ impl Attribute {
         // RFC5780: it is simply a new name with the same semantics as CHANGED-ADDRESS.
         // RCF3489: Its syntax is identical to MAPPED-ADDRESS.
         Self::decode_simple_address_attribute(message, Self::OtherAddress)
+    }
+
+    /// Gets the value of the RESPONSE-ORIGIN attribute from Message.
+    pub fn get_response_origin(message: &Message) -> Option<SocketAddr> {
+        Self::decode_simple_address_attribute(message, Self::ResponseOrigin)
     }
 
     /// Generates a value for the CHANGE-REQUEST attribute.
