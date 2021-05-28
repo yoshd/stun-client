@@ -179,8 +179,8 @@ impl Client {
                                 transactions_unlocked = Some(t.clone());
                             }
                             if let Some(transactions_unlocked) = transactions_unlocked {
-                                for transaction in transactions_unlocked.iter() {
-                                    let mut transaction = transaction.1.clone();
+                                for (_, transaction) in transactions_unlocked.iter() {
+                                    let mut transaction = transaction.clone();
                                     transaction.send(Err(e.clone())).await.ok();
                                 }
                             }

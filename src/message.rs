@@ -342,7 +342,7 @@ impl Message {
 
         while !attrs_buf.is_empty() {
             if attrs_buf.len() < 4 {
-                return Err(STUNClientError::ParseError());
+                break;
             }
 
             let attribute_type = Attribute::from_u16(u16::from_be_bytes([

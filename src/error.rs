@@ -18,8 +18,11 @@ pub enum STUNClientError {
 impl Clone for STUNClientError {
     fn clone(&self) -> Self {
         match self {
+            Self::ParseError() => Self::ParseError(),
             Self::IOError(e) => Self::IOError(std::io::Error::new(e.kind(), e.to_string())),
-            _ => self.clone(),
+            Self::NotSupportedError(msg) => Self::NotSupportedError(msg.clone()),
+            Self::TimeoutError() => Self::TimeoutError(),
+            Self::Unknown(msg) => Self::Unknown(msg.clone()),
         }
     }
 }
