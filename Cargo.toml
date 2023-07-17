@@ -17,7 +17,7 @@ keywords = ["stun", "nat", "p2p", "udp"]
 async-macros = "2.0.0"
 async-std = "1.9.0"
 futures = "0.3.14"
-pnet = "0.27.2"
+pnet = "0.33"
 rand = "0.8.3"
 thiserror = "1.0.24"
 
