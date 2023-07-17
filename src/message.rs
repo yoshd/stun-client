@@ -350,7 +350,7 @@ impl Message {
                 attrs_buf.remove(0),
             ]));
             let length =
-                usize::from_be_bytes([0, 0, 0, 0, 0, 0, attrs_buf.remove(0), attrs_buf.remove(0)]);
+                u16::from_be_bytes([attrs_buf.remove(0), attrs_buf.remove(0)]) as usize;
             if attrs_buf.len() < length {
                 return Err(STUNClientError::ParseError());
             }
