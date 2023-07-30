@@ -16,3 +16,10 @@ It also supports the OTHER-ADDRESS and CHANGE-REQUEST attributes for [RFC5780](h
 - [Simple STUN Binding](examples/stun_client.rs)
 - [NAT Behavior Discovery](examples/nat_behavior_discovery.rs)
 - [UDP Hole Punching](examples/udp_hole_punching.rs)
+
+# Running on Windows
+
+Due to the requirements of the dependency library libpnet, additional steps are needed.
+Please refer to the following.
+
+https://github.com/libpnet/libpnet#windows
